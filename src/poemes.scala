@@ -10,8 +10,10 @@ import scala.util.Random
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = ???
-    val chemin_dictionnaire:String = ???
+    //MODIF
+    val chemin_corpus:String = "corpus.txt"
+    //MODIF
+    val chemin_dictionnaire:String = "dicorimes.dmp"
     val texte = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     val poeme = new DeuxVers(texte)
     println(poeme.ecrire)
@@ -45,13 +47,17 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
    * ne soit pas trop grande.
    */
 
-  def ecrire():String = ???
+  //MODIF
+  def ecrire():String = choose_deux().mkString(", ")
 }
 
 
 
-class Mot(???,???,???) {
-  override def toString():String = ???
+//MODIF
+class Mot(mot:String,???,???) {
+
+  //MODIF
+  override def toString():String = mot
 
   /*
    * Deux mots riment ssi:
