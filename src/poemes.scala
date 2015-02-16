@@ -11,9 +11,11 @@ import scala.util.Random
 object Main {
   def main(args:Array[String]){
     //MODIF
-    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
+    //val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
+    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
     //MODIF
-    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
+    //val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
     val texte = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     val poeme = new DeuxVers(texte)
     println(poeme.ecrire)
@@ -48,7 +50,17 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
    */
 
   //MODIF
-  def ecrire():String = choose_deux().mkString(", ")
+  def ecrire():String = {
+    def est_assez_bon(p1:Phrase, p2:Phrase): Boolean = {
+      if(Math.abs(p1.syllabes - p2.syllabes).<(2)) true else false
+    }
+    val phrases = choose_deux()
+    if(est_assez_bon(phrases(0)._1, phrases(0)._2)) {
+      phrases(0)._1.toString() + "\n" + phrases(0)._2.toString()
+    }
+    else
+      ecrire()
+  }
 }
 
 
@@ -58,6 +70,8 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
 
   //MODIF
   override def toString():String = mot
+  def countSyllabes():Int = nbSyllabes
+  def phonetiquetoString():String = phonetique
 
   /*
    * Deux mots riment ssi:
@@ -69,34 +83,39 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
    * val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
    */
   def rime_avec(autre_mot:Mot):Boolean = {
-    val first = new Phone(this)
-    val second = new Phone(autre_mot)
-    if (first.est_une_voyelle && second.est_une_voyelle && first == second)
-    {
-      true
+    val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
+    val first = if(voyelles contains phonetique.last.toString()) new Voyelle(phonetique.last) else new Consonne(phonetique.last)
+    val second = if(voyelles contains autre_mot.phonetiquetoString().last.toString()) new Voyelle(autre_mot.phonetiquetoString().last) else new Consonne(autre_mot.phonetiquetoString().last)
+    (first, second) match {
+        case (first: Voyelle, second: Voyelle) =>
+            val test = first.getChar() == second.getChar()
+            test
+        case (first: Consonne, second: Consonne) => {
+            if(first == second) {
+              val newMot = new Mot(mot.dropRight(1), nbSyllabes - 1, phonetique.dropRight(1))
+              val test = newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
+              test
+            }
+            else false
+          }
+        case _ => false
+        }
     }
-    else
-    {
-
-    }
-    false
-  }
 }
 
 //MODIF
-case class Phone(p:Mot) {
-  protected val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
-
-  def est_une_voyelle: Boolean = voyelles contains p.toString();
+class Phone(p: Char) {
+  def getChar():Char = p
 }
 
 //MODIF
-//case class Voyelle() extends Phone(p:Mot) {
-//}
+case class Voyelle(v: Char) extends Phone(p = v) {
 
-//MODIF
-//case class Consonne() extends Phone(p:Mot) {
-//}
+}
+
+case class Consonne(c: Char) extends Phone(p = c) {
+
+}
 
 
 class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
@@ -119,11 +138,11 @@ class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
    * qui en résulte
    */
   //MODIF
-  val syllabes:Int = phrase.map(x => x).sum
+  val syllabes:Int = mots.map(x => x.countSyllabes).sum
 
   /*Deux phrases riment si le dernier mot de l'une rime avec le dernier mot de l'autre.*/
   //MODIF
-  def rime_avec(phrs:Phrase):Boolean = mots(mots.length-1) rime_avec phrs.mots(phrs.mots.length-1)
+  def rime_avec(phrs:Phrase):Boolean = mots.last rime_avec phrs.mots.last
 }
 
 /*Cet object compagnon permet de créer une phrase sans utiliser new Phrase(...) mais en mettant directement Phrase(...)*/
