@@ -68,7 +68,23 @@ class Mot(mot:String,???,???) {
    * Pour celle-ci, vous avez le droit de considérer que les voyelles correspondent aux écritures phonétiques suivantes:
    * val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
    */
-  def rime_avec(autre_mot:Mot):Boolean = ???
+  def rime_avec(autre_mot:Mot):Boolean =
+
+}
+
+//MODIF
+class Phone() {
+  protected val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
+}
+
+//MODIF
+class Voyelle() extends Phone {
+
+  def est_une_voyelle(voy:String): Boolean = voyelles contains voy
+}
+
+//MODIF
+class Consonne() extends Phone {
 
 }
 
