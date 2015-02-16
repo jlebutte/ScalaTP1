@@ -11,9 +11,9 @@ import scala.util.Random
 object Main {
   def main(args:Array[String]){
     //MODIF
-    val chemin_corpus:String = "corpus.txt"
+    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
     //MODIF
-    val chemin_dictionnaire:String = "dicorimes.dmp"
+    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
     val texte = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     val poeme = new DeuxVers(texte)
     println(poeme.ecrire)
@@ -54,7 +54,7 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
 
 
 //MODIF
-class Mot(mot:String,???,???) {
+class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
 
   //MODIF
   override def toString():String = mot
@@ -68,25 +68,35 @@ class Mot(mot:String,???,???) {
    * Pour celle-ci, vous avez le droit de considérer que les voyelles correspondent aux écritures phonétiques suivantes:
    * val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
    */
-  def rime_avec(autre_mot:Mot):Boolean =
+  def rime_avec(autre_mot:Mot):Boolean = {
+    val first = new Phone(this)
+    val second = new Phone(autre_mot)
+    if (first.est_une_voyelle && second.est_une_voyelle && first == second)
+    {
+      true
+    }
+    else
+    {
 
+    }
+    false
+  }
 }
 
 //MODIF
-class Phone() {
+case class Phone(p:Mot) {
   protected val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
+
+  def est_une_voyelle: Boolean = voyelles contains p.toString();
 }
 
 //MODIF
-class Voyelle() extends Phone {
-
-  def est_une_voyelle(voy:String): Boolean = voyelles contains voy
-}
+//case class Voyelle() extends Phone(p:Mot) {
+//}
 
 //MODIF
-class Consonne() extends Phone {
-
-}
+//case class Consonne() extends Phone(p:Mot) {
+//}
 
 
 class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
@@ -94,7 +104,7 @@ class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
    * Un token est un groupe de lettre séparé par des signes de ponctuation
    * (notamment des espaces).  C'est ce qu'on appelle généralement des "mots".
    */
-  private val tokens = Phrases.split_phrases(phrase.toLowerCase)
+  private val tokens = Phrases.split_mots(phrase.toLowerCase)
 
   /*La liste des mots de la phrase*/
   val mots = for {
@@ -108,10 +118,12 @@ class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
    * chaque mot par son nombre de syllabes et utilisez .sum sur la liste
    * qui en résulte
    */
-  val syllabes:Int = ???
+  //MODIF
+  val syllabes:Int = phrase.map(x => x).sum
 
   /*Deux phrases riment si le dernier mot de l'une rime avec le dernier mot de l'autre.*/
-  def rime_avec(phrs:Phrase):Boolean = ???
+  //MODIF
+  def rime_avec(phrs:Phrase):Boolean = mots(mots.length-1) rime_avec phrs.mots(phrs.mots.length-1)
 }
 
 /*Cet object compagnon permet de créer une phrase sans utiliser new Phrase(...) mais en mettant directement Phrase(...)*/
@@ -142,7 +154,10 @@ object Phrases{
      *
      * Puis utilisez .toSet sur la liste obtenue
      */
-    val mots_set:Set[String] = ???
+    //MODIF
+    val mots_set:Set[String] = for {
+      mots: String <- split_mots(texte).map(x => x.toLowerCase()).toSet
+    } yield mots
 
     /*
      * Liste de chaines de caractères représentant chaque ligne du dictionnaire
@@ -159,11 +174,15 @@ object Phrases{
      *         vous pouvez utiliser la méthode .toMap  de cette façon:
      *         List((key1,val1),(key2,val2)...).toMap donne Map(key1->val1,key2->val2,...)
      */
-    val mots_hachage:Map[String,Mot] = ???
+    //MODIF
+    val mots_hachage:Map[String,Mot] = dico.map(i => i.split(",")(1) -> new Mot(
+      i.split(",")(1),
+      i.split(",")(6).toInt,
+      i.split(",")(8))).toMap
 
 
     /*Liste des phrases du texte dont tous les mots font partie du dictionnaire*/
-    val phrases:Iterator[Phrase] = for {
+    val phrases = for {
       p<-phrases_txt  if (((split_mots(p) map (mots_hachage contains _)) forall (x=>x)) && p.trim!="")
     } yield Phrase(p.trim,mots_hachage)
     phrases.toList
