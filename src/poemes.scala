@@ -11,11 +11,11 @@ import scala.util.Random
 object Main {
   def main(args:Array[String]){
     //MODIF
-    //val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
-    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
+    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
+    //val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
     //MODIF
-    //val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
-    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
+    //val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
     val texte = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     val poeme = new DeuxVers(texte)
     println(poeme.ecrire)
@@ -52,7 +52,7 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   //MODIF
   def ecrire():String = {
     def est_assez_bon(p1:Phrase, p2:Phrase): Boolean = {
-      if(Math.abs(p1.syllabes - p2.syllabes).<(2)) true else false
+      if(Math.abs(p1.syllabes - p2.syllabes).<(3)) true else false
     }
     val phrases = choose_deux()
     if(est_assez_bon(phrases(0)._1, phrases(0)._2)) {
@@ -84,20 +84,19 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
    */
   def rime_avec(autre_mot:Mot):Boolean = {
     val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
-    val first = if(voyelles contains phonetique.last.toString()) new Voyelle(phonetique.last) else new Consonne(phonetique.last)
-    val second = if(voyelles contains autre_mot.phonetiquetoString().last.toString()) new Voyelle(autre_mot.phonetiquetoString().last) else new Consonne(autre_mot.phonetiquetoString().last)
+    val first = if(voyelles contains phonetique.last.toString) new Voyelle(phonetique.last) else new Consonne(phonetique.last)
+    val second = if(voyelles contains autre_mot.phonetiquetoString().last.toString) new Voyelle(autre_mot.phonetiquetoString().last) else new Consonne(autre_mot.phonetiquetoString().last)
     (first, second) match {
         case (first: Voyelle, second: Voyelle) =>
-            val test = first.getChar() == second.getChar()
+            val test = first.getChar == second.getChar
             test
-        case (first: Consonne, second: Consonne) => {
-            if(first == second) {
-              val newMot = new Mot(mot.dropRight(1), nbSyllabes - 1, phonetique.dropRight(1))
-              val test = newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
-              test
-            }
-            else false
+        case (first: Consonne, second: Consonne) =>
+          if(first == second) {
+            val newMot = new Mot(mot.dropRight(1), nbSyllabes - 1, phonetique.dropRight(1))
+            val test = newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
+            test
           }
+          else false
         case _ => false
         }
     }
@@ -105,7 +104,7 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
 
 //MODIF
 class Phone(p: Char) {
-  def getChar():Char = p
+  def getChar:Char = p
 }
 
 //MODIF
@@ -175,7 +174,7 @@ object Phrases{
      */
     //MODIF
     val mots_set:Set[String] = for {
-      mots: String <- split_mots(texte).map(x => x.toLowerCase()).toSet
+      mots: String <- split_mots(texte).map(x => x.toLowerCase).toSet
     } yield mots
 
     /*
