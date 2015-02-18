@@ -1,6 +1,6 @@
 /*
- *Auteur:
- *Date:
+ *Auteur: Julien Lebutte
+ *Date: 19/02/2015
  *Description: générateur automatique de poèmes
  *
  */
@@ -10,12 +10,8 @@ import scala.util.Random
 
 object Main {
   def main(args:Array[String]){
-    //MODIF
-    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
-    //val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
-    //MODIF
-    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
-    //val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_corpus:String = "corpus.txt"
+    val chemin_dictionnaire:String = "dicorimes.dmp"
     val texte = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     val poeme = new DeuxVers(texte)
     println(poeme.ecrire)
@@ -49,7 +45,8 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
    * ne soit pas trop grande.
    */
 
-  //MODIF
+  // Vérification du nombre de syllabes à l'aide une fonction.
+  // Si les deux phrases ont plus de 2 syllabes d'écart, on rejette
   def ecrire():String = {
     def est_assez_bon(p1:Phrase, p2:Phrase): Boolean = {
       if(Math.abs(p1.syllabes - p2.syllabes).<(3)) true else false
@@ -64,11 +61,8 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
 }
 
 
-
-//MODIF
 class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
 
-  //MODIF
   override def toString():String = mot
   def countSyllabes():Int = nbSyllabes
   def phonetiquetoString():String = phonetique
@@ -82,19 +76,26 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
    * Pour celle-ci, vous avez le droit de considérer que les voyelles correspondent aux écritures phonétiques suivantes:
    * val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
    */
+
+  /*
+  Pattern matching sur les phones + variables non-mutables
+  First = dernière syllabes du mot
+  Second = dernière syllabe de autre_mot
+
+  La pattern matching permet de distinguer les différents cas possibles pour la comparaison selon les commentaires ci-dessus
+  S'il s'agit de deux consonnes identiquent, on appelle de nouveau la fonction en retirant la dernière syllabe du mot phonétique.
+  */
   def rime_avec(autre_mot:Mot):Boolean = {
     val voyelles = Set("a","e","i","o","u","y","à","è","ù","é","â","ê","î","ô","û","ä","ë","ï","ö","ü","E","§","2","5","9","8","£","@")
     val first = if(voyelles contains phonetique.last.toString) new Voyelle(phonetique.last) else new Consonne(phonetique.last)
-    val second = if(voyelles contains autre_mot.phonetiquetoString().last.toString) new Voyelle(autre_mot.phonetiquetoString().last) else new Consonne(autre_mot.phonetiquetoString().last)
+    val second = if(voyelles contains autre_mot.phonetiquetoString.last.toString) new Voyelle(autre_mot.phonetiquetoString.last) else new Consonne(autre_mot.phonetiquetoString.last)
     (first, second) match {
         case (first: Voyelle, second: Voyelle) =>
-            val test = first.getChar == second.getChar
-            test
+            first.getChar == second.getChar
         case (first: Consonne, second: Consonne) =>
           if(first == second) {
             val newMot = new Mot(mot.dropRight(1), nbSyllabes - 1, phonetique.dropRight(1))
-            val test = newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
-            test
+            newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
           }
           else false
         case _ => false
@@ -102,12 +103,12 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
     }
 }
 
-//MODIF
+// Création d'une class Phone et utilisation de l'héritage
+// Les case class Voyelle et Consonne sont utilisées pour le pattern matching
 class Phone(p: Char) {
   def getChar:Char = p
 }
 
-//MODIF
 case class Voyelle(v: Char) extends Phone(p = v) {
 
 }
@@ -136,11 +137,12 @@ class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
    * chaque mot par son nombre de syllabes et utilisez .sum sur la liste
    * qui en résulte
    */
-  //MODIF
+
+  // Utilisation de la fonction de haut niveau map
+  // Utilisation des fonctions anonymes
   val syllabes:Int = mots.map(x => x.countSyllabes).sum
 
   /*Deux phrases riment si le dernier mot de l'une rime avec le dernier mot de l'autre.*/
-  //MODIF
   def rime_avec(phrs:Phrase):Boolean = mots.last rime_avec phrs.mots.last
 }
 
@@ -172,7 +174,9 @@ object Phrases{
      *
      * Puis utilisez .toSet sur la liste obtenue
      */
-    //MODIF
+
+    // for comprehension + fonction anonyme
+    // Utilisation d'un Set
     val mots_set:Set[String] = for {
       mots: String <- split_mots(texte).map(x => x.toLowerCase).toSet
     } yield mots
@@ -192,7 +196,8 @@ object Phrases{
      *         vous pouvez utiliser la méthode .toMap  de cette façon:
      *         List((key1,val1),(key2,val2)...).toMap donne Map(key1->val1,key2->val2,...)
      */
-    //MODIF
+    // Fonction de haut niveau + fonction anonyme
+    // Appel à la structure Map
     val mots_hachage:Map[String,Mot] = dico.map(i => i.split(",")(1) -> new Mot(
       i.split(",")(1),
       i.split(",")(6).toInt,
