@@ -6,15 +6,23 @@
  */
 
 import scala.io.Source
-import scala.util.Random
+import scala.util.{Try, Random, Success, Failure}
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = "corpus.txt"
-    val chemin_dictionnaire:String = "dicorimes.dmp"
-    val texte = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
-    val poeme = new DeuxVers(texte)
-    println(poeme.ecrire)
+    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
+    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
+    val poeme = for {
+      texte<- Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
+    } yield new DeuxVers(texte)
+    poeme match {
+      case Success(x) => println(x.ecrire())
+      case Failure(f) => println("Erreur : " + f)
+    }
+//    Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire) match {
+//      case Success(texte) => println(new DeuxVers(texte).ecrire())
+//      case Failure(f) => println("Erreur : " + f)
+//    }
   }
 }
 
@@ -24,6 +32,38 @@ abstract class Poeme(phrases:List[Phrase]){
   def choose():List[Phrase] = {
     for {i<-List.range(0,phrases.length)}
     yield phrases((new Random).nextInt.abs % phrases.length)
+  }
+
+  //Generateur aleatoire de phrases
+  private val phrases_aleatoires =  new Generator[List[Phrase]] {
+    def generate = for {i<-List.range(0,phrases.length)}
+    yield phrases(ints.generate % phrases.length)
+  }
+
+  def filterRime(p:Phrase): List[Phrase] = {
+    phrases.filter(x => x rime_avec p)
+  }
+
+  //Generateur aleatoire de couples de phrases qui riment
+  val couple_riment:Option[List[(Phrase,Phrase)]]= {
+    if ((for {
+      p1<-phrases
+      p2<-phrases if ((p1!=p2) &&  (p1 rime_avec p2) && Math.abs(p1.syllabes - p2.syllabes).<(3))
+    } yield (p1,p2)).length == 0) None
+    else {
+      for {
+        p1<-
+        /*TODO.  Attention: vous aurez peut-etre besoin de mettre un if ici.
+                        Si oui, vous devrez ajouter une methode filter (ou filterWith)
+                        au trait Generator qui permet de generer une phrase qui respecte
+                        une condition particuliere.*/
+        p2<-
+        /*TODO.  Un conseil: ne cherchez pas p2 parmi toutes les phrases:
+                         vous devriez filtrer d'abord la liste des phrases...ou faire
+                         une fonction qui extrait uniquement les phrases qui riment
+                         avec p1 et qui les renvoie de facon aleatoire*/
+      } yield (p1,p2)
+    }
   }
 
   /*Renvoie au hasard des couples de phrases qui riment*/
@@ -36,6 +76,11 @@ abstract class Poeme(phrases:List[Phrase]){
 
   /*Renvoie un poème*/
   def ecrire():String
+
+  val ints = new Generator[Int] {
+    val rand = new java.util.Random
+    def generate = rand.nextInt()
+  }
 }
 class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   /*
@@ -48,15 +93,10 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   // Vérification du nombre de syllabes à l'aide une fonction.
   // Si les deux phrases ont plus de 2 syllabes d'écart, on rejette
   def ecrire():String = {
-    def est_assez_bon(p1:Phrase, p2:Phrase): Boolean = {
-      if(Math.abs(p1.syllabes - p2.syllabes).<(3)) true else false
+    couple_riment match {
+      case Some(x) => x._1.toString() + "\n" + x._2.toString()
+      case None => "Il n'existe pas de couples possibles"
     }
-    val phrases = choose_deux()
-    if(est_assez_bon(phrases(0)._1, phrases(0)._2)) {
-      phrases(0)._1.toString() + "\n" + phrases(0)._2.toString()
-    }
-    else
-      ecrire()
   }
 }
 
@@ -155,59 +195,35 @@ object Phrase{
 object Phrases{
   def split_mots(s:String):Array[String] =  s.trim.toLowerCase.split("[- ’—,;'()\"!.:?]+")
   def split_phrases(s:String):Array[String] = s.split("(?<=[.!?:])")
-  def lire_csv(chemin:String,mots:Set[String]):List[String] ={ (for {line <- Source.fromFile(chemin).getLines()  if mots contains line.split(",")(1)} yield line).toList }
+  //def lire_csv(chemin:String,mots:Set[String]):List[String] ={ (for {line <- Source.fromFile(chemin).getLines()  if mots contains line.split(",")(1)} yield line).toList }
 
-  def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):List[Phrase] = {
-    val texte = Source.fromFile(chemin_texte).getLines().filter(_!="").foldLeft(""){_+_}
-    /*phrases du texte*/
-    val phrases_txt = for {
-      phrase<-split_phrases(texte)
-    } yield phrase
-
-    /*
-     * ENSEMBLE des mots du texte
-     * utilisez les méthodes:
-     *  split_mots
-     *  toLowerCase
-     *
-     * ...le tout dans une "for comprehension"
-     *
-     * Puis utilisez .toSet sur la liste obtenue
-     */
-
-    // for comprehension + fonction anonyme
-    // Utilisation d'un Set
-    val mots_set:Set[String] = for {
-      mots: String <- split_mots(texte).map(x => x.toLowerCase).toSet
-    } yield mots
-
-    /*
-     * Liste de chaines de caractères représentant chaque ligne du dictionnaire
-     * On n'extrait ici que les mots qui se trouvent dans mots_set pour ne pas
-     * charger tout le dictionnaire en mémoire
-     */
-    val dico = lire_csv(chemin_dictionnaire,mots_set)
-
-    /*
-     * Table de hachage qui contient comme clés chacun des mots du dictionnaire
-     * Et comme valeur des Mot (à définir).
-     * Indices:  utilisez la méthode .split(",") pour séparer les différents champs d'une ligne de dictionnaire.  Les champs intéressants
-     * à conserver ici sont le 1 (le mot), le 6 (le nombre de syllabes,à convertir en entier avec .toInt) et le 8 (l'écriture phonétique)
-     *         vous pouvez utiliser la méthode .toMap  de cette façon:
-     *         List((key1,val1),(key2,val2)...).toMap donne Map(key1->val1,key2->val2,...)
-     */
-    // Fonction de haut niveau + fonction anonyme
-    // Appel à la structure Map
-    val mots_hachage:Map[String,Mot] = dico.map(i => i.split(",")(1) -> new Mot(
-      i.split(",")(1),
-      i.split(",")(6).toInt,
-      i.split(",")(8))).toMap
-
-
-    /*Liste des phrases du texte dont tous les mots font partie du dictionnaire*/
-    val phrases = for {
-      p<-phrases_txt  if (((split_mots(p) map (mots_hachage contains _)) forall (x=>x)) && p.trim!="")
-    } yield Phrase(p.trim,mots_hachage)
-    phrases.toList
+  def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):Try[List[Phrase]] = {
+    for {
+        texte <- Try(Source.fromFile(chemin_texte).getLines().filter(_!="").foldLeft(""){_+_})
+        phrases_txt = split_phrases(texte)
+        mots_set = texte.trim.split("[- ’—,;'()\"!.:?]+").map(x => x.toLowerCase).toSet
+        dico <- Try(Source.fromFile(chemin_dictionnaire).getLines().filter(x => mots_set contains x.split(",")(1)).toList)
+        mots_hachage = dico.map(i => i.split(",")(1) -> new Mot(
+          i.split(",")(1),
+          i.split(",")(6).toInt,
+          i.split(",")(8))).toMap
+        phrases = phrases_txt.filter(p => ((split_mots(p) map (mots_hachage contains _)) forall (x=>x)) && p.trim!="").map(p => Phrase(p.trim,mots_hachage)).toList
+    } yield phrases
   }
+}
+
+trait Generator[T] {
+  self =>
+  def generate : T
+  def map[S](f: T => S): Generator[S] = new Generator[S] {
+    def generate = f(self.generate)
+  }
+  def flatMap[S](f: T => Generator[S]): Generator[S] =
+    new Generator[S] {
+      def generate = f(self.generate).generate
+    }
+  def filter(f: T => Boolean) : Generator[T] =
+    new Generator[T] {
+      def generate = f(self.generate)
+    }
 }
