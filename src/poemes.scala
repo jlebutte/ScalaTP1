@@ -10,8 +10,8 @@ import scala.util.{Try, Random, Success, Failure}
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
-    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
+    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
     val poeme = for {
       texte<- Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     } yield new DeuxVers(texte)
@@ -19,10 +19,6 @@ object Main {
       case Success(x) => println(x.ecrire())
       case Failure(f) => println("Erreur : " + f)
     }
-//    Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire) match {
-//      case Success(texte) => println(new DeuxVers(texte).ecrire())
-//      case Failure(f) => println("Erreur : " + f)
-//    }
   }
 }
 
@@ -34,10 +30,22 @@ abstract class Poeme(phrases:List[Phrase]){
     yield phrases((new Random).nextInt.abs % phrases.length)
   }
 
+
+  val ints = new Generator[Int] {
+    val rand = new java.util.Random
+    def generate = rand.nextInt()
+  }
+
   //Generateur aleatoire de phrases
   private val phrases_aleatoires =  new Generator[List[Phrase]] {
     def generate = for {i<-List.range(0,phrases.length)}
-    yield phrases(ints.generate % phrases.length)
+    yield phrases(ints.generate.abs % phrases.length)
+  }
+
+  private def phrases_generator(ph:List[Phrase]):Generator[List[Phrase]] = {
+    new Generator[List[Phrase]] {
+      def generate = for {i<-List.range(0,ph.length)}
+      yield ph(Math.abs(ints.generate % ph.length))}
   }
 
   def filterRime(p:Phrase): List[Phrase] = {
@@ -45,23 +53,17 @@ abstract class Poeme(phrases:List[Phrase]){
   }
 
   //Generateur aleatoire de couples de phrases qui riment
-  val couple_riment:Option[List[(Phrase,Phrase)]]= {
+  val couple_riment:Option[(Phrase,Phrase)]= {
     if ((for {
       p1<-phrases
       p2<-phrases if ((p1!=p2) &&  (p1 rime_avec p2) && Math.abs(p1.syllabes - p2.syllabes).<(3))
     } yield (p1,p2)).length == 0) None
     else {
       for {
-        p1<-
-        /*TODO.  Attention: vous aurez peut-etre besoin de mettre un if ici.
-                        Si oui, vous devrez ajouter une methode filter (ou filterWith)
-                        au trait Generator qui permet de generer une phrase qui respecte
-                        une condition particuliere.*/
-        p2<-
-        /*TODO.  Un conseil: ne cherchez pas p2 parmi toutes les phrases:
-                         vous devriez filtrer d'abord la liste des phrases...ou faire
-                         une fonction qui extrait uniquement les phrases qui riment
-                         avec p1 et qui les renvoie de facon aleatoire*/
+        p1<-Option(phrases_aleatoires.generate(0))
+        p2<-Option({
+          phrases_generator(phrases.filter(x => (x != p1) && (x rime_avec p1) && Math.abs(p1.syllabes - x.syllabes).<(3))).generate(0)
+        })
       } yield (p1,p2)
     }
   }
@@ -76,11 +78,6 @@ abstract class Poeme(phrases:List[Phrase]){
 
   /*Renvoie un poème*/
   def ecrire():String
-
-  val ints = new Generator[Int] {
-    val rand = new java.util.Random
-    def generate = rand.nextInt()
-  }
 }
 class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   /*
@@ -195,7 +192,7 @@ object Phrase{
 object Phrases{
   def split_mots(s:String):Array[String] =  s.trim.toLowerCase.split("[- ’—,;'()\"!.:?]+")
   def split_phrases(s:String):Array[String] = s.split("(?<=[.!?:])")
-  //def lire_csv(chemin:String,mots:Set[String]):List[String] ={ (for {line <- Source.fromFile(chemin).getLines()  if mots contains line.split(",")(1)} yield line).toList }
+  def lire_csv(chemin:String,mots:Set[String]):List[String] ={ (for {line <- Source.fromFile(chemin).getLines()  if mots contains line.split(",")(1)} yield line).toList }
 
   def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):Try[List[Phrase]] = {
     for {
@@ -222,8 +219,11 @@ trait Generator[T] {
     new Generator[S] {
       def generate = f(self.generate).generate
     }
-  def filter(f: T => Boolean) : Generator[T] =
-    new Generator[T] {
-      def generate = f(self.generate)
+  def	filter (f : T => Boolean) : Generator[T] = new Generator[T]  {
+    override def generate =
+    {
+      val gen = self.generate
+      if (f(gen)) gen else this.generate
     }
+  }
 }
