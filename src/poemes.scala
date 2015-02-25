@@ -45,7 +45,7 @@ abstract class Poeme(phrases:List[Phrase]){
   private def phrases_generator(ph:List[Phrase]):Generator[List[Phrase]] = {
     new Generator[List[Phrase]] {
       def generate = for {i<-List.range(0,ph.length)}
-      yield ph(Math.abs(ints.generate % ph.length))}
+      yield ph(ints.generate.abs % ph.length)}
   }
 
   def filterRime(p:Phrase): List[Phrase] = {
