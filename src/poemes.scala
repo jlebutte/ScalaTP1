@@ -10,8 +10,8 @@ import scala.util.{Try, Random, Success, Failure}
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
-    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
+    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
     val poeme = for {
       texte<- Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     } yield new DeuxVers(texte)
@@ -37,9 +37,8 @@ abstract class Poeme(phrases:List[Phrase]){
   }
 
   //Generateur aleatoire de phrases
-  private val phrases_aleatoires =  new Generator[List[Phrase]] {
-    def generate = for {i<-List.range(0,phrases.length)}
-    yield phrases(ints.generate.abs % phrases.length)
+  private val phrases_aleatoires =  new Generator[Phrase] {
+    def generate = phrases(ints.generate.abs % phrases.length)
   }
 
   private def phrases_generator(ph:List[Phrase]):Generator[List[Phrase]] = {
@@ -53,18 +52,11 @@ abstract class Poeme(phrases:List[Phrase]){
   }
 
   //Generateur aleatoire de couples de phrases qui riment
-  val couple_riment:Option[(Phrase,Phrase)]= {
-    if ((for {
-      p1<-phrases
-      p2<-phrases if ((p1!=p2) &&  (p1 rime_avec p2) && Math.abs(p1.syllabes - p2.syllabes).<(3))
-    } yield (p1,p2)).length == 0) None
+  val couple_riment:Option[Generator[(Phrase,Phrase)]]= {
+    if (!phrases.exists(p1 => phrases.exists(p2 => (p1 rime_avec p2) && p1 != p2 && Math.abs(p1.syllabes - p2.syllabes).<(3)))) None
     else {
-      for {
-        p1<-Option(phrases_aleatoires.generate(0))
-        p2<-Option({
-          phrases_generator(phrases.filter(x => (x != p1) && (x rime_avec p1) && Math.abs(p1.syllabes - x.syllabes).<(3))).generate(0)
-        })
-      } yield (p1,p2)
+      val filterList = phrases_aleatoires.filter(p1 => phrases.exists(p2 => (p1 rime_avec p2) && p1 != p2 && Math.abs(p1.syllabes - p2.syllabes).<(3)))
+      Some(filterList flatMap(p1 => for(p2 <- filterList.filter(p2 => (p2 rime_avec p1) && p1 != p2 && Math.abs(p1.syllabes - p2.syllabes).<(3))) yield (p1, p2)))
     }
   }
 
@@ -91,7 +83,8 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   // Si les deux phrases ont plus de 2 syllabes d'écart, on rejette
   def ecrire():String = {
     couple_riment match {
-      case Some(x) => x._1.toString() + "\n" + x._2.toString()
+      case Some(x) => {val gen = x.generate
+        gen._1.toString() + "\n" + gen._2.toString()}
       case None => "Il n'existe pas de couples possibles"
     }
   }
