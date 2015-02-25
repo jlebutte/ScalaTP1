@@ -10,8 +10,8 @@ import scala.util.{Try, Random, Success, Failure}
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\corpus.txt"
-    val chemin_dictionnaire:String = "C:\\Users\\yama_000\\IdeaProjects\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
+    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
     val poeme = for {
       texte<- Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
     } yield new DeuxVers(texte)
@@ -30,7 +30,7 @@ abstract class Poeme(phrases:List[Phrase]){
     yield phrases((new Random).nextInt.abs % phrases.length)
   }
 
-
+  //Generateur aleatoire d'entiers
   val ints = new Generator[Int] {
     val rand = new java.util.Random
     def generate = rand.nextInt()
@@ -41,22 +41,15 @@ abstract class Poeme(phrases:List[Phrase]){
     def generate = phrases(ints.generate.abs % phrases.length)
   }
 
-  private def phrases_generator(ph:List[Phrase]):Generator[List[Phrase]] = {
-    new Generator[List[Phrase]] {
-      def generate = for {i<-List.range(0,ph.length)}
-      yield ph(ints.generate.abs % ph.length)}
-  }
-
-  def filterRime(p:Phrase): List[Phrase] = {
-    phrases.filter(x => x rime_avec p)
-  }
-
   //Generateur aleatoire de couples de phrases qui riment
   val couple_riment:Option[Generator[(Phrase,Phrase)]]= {
-    if (!phrases.exists(p1 => phrases.exists(p2 => (p1 rime_avec p2) && p1 != p2 && Math.abs(p1.syllabes - p2.syllabes).<(3)))) None
+    // test s'il n'existe des couples de phrases qui riment et qui ont presque le meme nombre de syllabes
+    // On renvoie None si aucun couple n'est trouvé, ce qui permet d'utiliser le concept Option de Scala
+    if (!phrases.exists(p1 => phrases.exists(p2 => (p1 rime_avec p2)))) None
     else {
-      val filterList = phrases_aleatoires.filter(p1 => phrases.exists(p2 => (p1 rime_avec p2) && p1 != p2 && Math.abs(p1.syllabes - p2.syllabes).<(3)))
-      Some(filterList flatMap(p1 => for(p2 <- filterList.filter(p2 => (p2 rime_avec p1) && p1 != p2 && Math.abs(p1.syllabes - p2.syllabes).<(3))) yield (p1, p2)))
+      // conversion du for-comprehension en flatMap + filter
+      val filterList = phrases_aleatoires.filter(p1 => phrases.exists(p2 => (p1 rime_avec p2)))
+      Some(filterList flatMap(p1 => for(p2 <- filterList.filter(p2 => (p2 rime_avec p1))) yield (p1, p2)))
     }
   }
 
@@ -83,6 +76,7 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   // Si les deux phrases ont plus de 2 syllabes d'écart, on rejette
   def ecrire():String = {
     couple_riment match {
+        // Pattern-matching sur les Option renvoyées par le générateur de couples
       case Some(x) => {val gen = x.generate
         gen._1.toString() + "\n" + gen._2.toString()}
       case None => "Il n'existe pas de couples possibles"
@@ -156,9 +150,9 @@ class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
   private val tokens = Phrases.split_mots(phrase.toLowerCase)
 
   /*La liste des mots de la phrase*/
-  val mots = for {
-    t<-tokens
-  } yield mots_hachage(t)
+
+  //Transformation d'un for-comprehension en map
+  val mots = tokens map (t => mots_hachage(t))
   override def toString():String = phrase
 
   /*
@@ -173,7 +167,7 @@ class Phrase(phrase:String,mots_hachage:Map[String,Mot]){
   val syllabes:Int = mots.map(x => x.countSyllabes).sum
 
   /*Deux phrases riment si le dernier mot de l'une rime avec le dernier mot de l'autre.*/
-  def rime_avec(phrs:Phrase):Boolean = mots.last rime_avec phrs.mots.last
+  def rime_avec(phrs:Phrase):Boolean = (mots.last rime_avec phrs.mots.last) && this != phrs && Math.abs(syllabes - phrs.syllabes).<(3)
 }
 
 /*Cet object compagnon permet de créer une phrase sans utiliser new Phrase(...) mais en mettant directement Phrase(...)*/
@@ -189,14 +183,18 @@ object Phrases{
 
   def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):Try[List[Phrase]] = {
     for {
+      // On essaie de lire le corpus
         texte <- Try(Source.fromFile(chemin_texte).getLines().filter(_!="").foldLeft(""){_+_})
         phrases_txt = split_phrases(texte)
+      // Conversion du for-comprehension permettant de créer le set en utilisant la fonction map
         mots_set = texte.trim.split("[- ’—,;'()\"!.:?]+").map(x => x.toLowerCase).toSet
+      // On essaie de lire le dictionnaire
         dico <- Try(Source.fromFile(chemin_dictionnaire).getLines().filter(x => mots_set contains x.split(",")(1)).toList)
         mots_hachage = dico.map(i => i.split(",")(1) -> new Mot(
           i.split(",")(1),
           i.split(",")(6).toInt,
           i.split(",")(8))).toMap
+      // Conversion du for-comprehension en une suite de fonction map et filter
         phrases = phrases_txt.filter(p => ((split_mots(p) map (mots_hachage contains _)) forall (x=>x)) && p.trim!="").map(p => Phrase(p.trim,mots_hachage)).toList
     } yield phrases
   }
