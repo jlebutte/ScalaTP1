@@ -7,18 +7,47 @@
 
 import scala.io.Source
 import scala.util.{Try, Random, Success, Failure}
+import scala.concurrent._
+import scala.concurrent.duration._
+import ExecutionContext.Implicits.global
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
-    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
-    val poeme = for {
-      texte<- Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
-    } yield new DeuxVers(texte)
-    poeme match {
-      case Success(x) => println(x.ecrire())
-      case Failure(f) => println("Erreur : " + f)
+    val chemin_corpus:String = System.getProperty("corpus.txt")
+    val chemin_dictionnaire:String = System.getProperty("dicorimes.dmp")
+    val chemin_daudet:String = System.getProperty("daudet.txt")
+    val chemin_zola:String = System.getProperty("zola.txt")
+    val chemin_dixcontes:String = System.getProperty("dixcontes.txt")
+
+
+    val quatrain = Promise[String]()
+    quatrain.future onSuccess
+      {
+        case yes => println("Yeah")
+      }
+    quatrain.future onFailure
+      {
+        case yes => println(":(")
+      }
+
+    Future {
+
     }
+    val phrases_daudet:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_daudet,chemin_dictionnaire)
+      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+    val phrases_dixcontes:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_dixcontes,chemin_dictionnaire)
+      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+    //val phrases_zola:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_zola,chemin_dictionnaire)
+    //  .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+
+
+//    val phrases:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
+//      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+//
+//    poeme match {
+//      case Success(x) => println(x.ecrire())
+//      case Failure(f) => println("Erreur : " + f)
+//    }
   }
 }
 
@@ -79,7 +108,7 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
         // Pattern-matching sur les Option renvoyées par le générateur de couples
       case Some(x) => {val gen = x.generate
         gen._1.toString() + "\n" + gen._2.toString()}
-      case None => "Il n'existe pas de couples possibles"
+      case None => ""
     }
   }
 }
@@ -181,15 +210,15 @@ object Phrases{
   def split_phrases(s:String):Array[String] = s.split("(?<=[.!?:])")
   def lire_csv(chemin:String,mots:Set[String]):List[String] ={ (for {line <- Source.fromFile(chemin).getLines()  if mots contains line.split(",")(1)} yield line).toList }
 
-  def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):Try[List[Phrase]] = {
+  def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):Future[List[Phrase]] = {
     for {
       // On essaie de lire le corpus
-        texte <- Try(Source.fromFile(chemin_texte).getLines().filter(_!="").foldLeft(""){_+_})
+        texte <- Future(Source.fromFile(chemin_texte).getLines().filter(_!="").foldLeft(""){_+_})
         phrases_txt = split_phrases(texte)
       // Conversion du for-comprehension permettant de créer le set en utilisant la fonction map
         mots_set = texte.trim.split("[- ’—,;'()\"!.:?]+").map(x => x.toLowerCase).toSet
       // On essaie de lire le dictionnaire
-        dico <- Try(Source.fromFile(chemin_dictionnaire).getLines().filter(x => mots_set contains x.split(",")(1)).toList)
+        dico <- Future(Source.fromFile(chemin_dictionnaire).getLines().filter(x => mots_set contains x.split(",")(1)).toList)
         mots_hachage = dico.map(i => i.split(",")(1) -> new Mot(
           i.split(",")(1),
           i.split(",")(6).toInt,
