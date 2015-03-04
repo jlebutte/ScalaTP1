@@ -1,6 +1,6 @@
 /*
  *Auteur: Julien Lebutte
- *Date: 19/02/2015
+ *Date: 05/03/2015
  *Description: générateur automatique de poèmes
  *
  */
@@ -13,26 +13,26 @@ import ExecutionContext.Implicits.global
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = System.getProperty("corpus.txt")
-    val chemin_dictionnaire:String = System.getProperty("dicorimes.dmp")
-    val chemin_daudet:String = System.getProperty("daudet.txt")
-    val chemin_zola:String = System.getProperty("zola.txt")
-    val chemin_dixcontes:String = System.getProperty("dixcontes.txt")
+    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
+    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
+    val chemin_daudet:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\daudet.txt"
+    val chemin_zola:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\zola.txt"
+    val chemin_dixcontes:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dixcontes.txt"
 
 
     val quatrain = Promise[String]()
+    val po1 = Promise[List[Phrase]]()
+    val po2 = Promise[List[Phrase]]()
+
     quatrain.future onSuccess
       {
-        case yes => println("Yeah")
+        case message => println(message)
       }
     quatrain.future onFailure
       {
-        case yes => println(":(")
+        case erreur => println(erreur.getMessage)
       }
 
-    Future {
-
-    }
     val phrases_daudet:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_daudet,chemin_dictionnaire)
       .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
     val phrases_dixcontes:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_dixcontes,chemin_dictionnaire)
@@ -40,14 +40,52 @@ object Main {
     //val phrases_zola:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_zola,chemin_dictionnaire)
     //  .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
 
+    phrases_daudet.onComplete
+    {
+      case Success(list) => {
+        Future {
+          new DeuxVers(list).ecrire()
+        }.onComplete
+        {
+          case Success(vers) => po1.success(vers)
+          case Failure(e) => po1.failure(new Exception("Erreur : aucun couple de phrases n'a été trouvé dans le premier corpus"))
+        }
+      }
+      case Failure(e) => po1.failure(new Exception("Erreur : les phrases n'ont pas pu être extraites du premier corpus"))
+    }
+    phrases_dixcontes.onComplete
+    {
+      case Success(list) =>  {
+        Future {
+          new DeuxVers(list).ecrire()
+        }.onComplete
+        {
+          case Success(vers) => po2.success(vers)
+          case Failure(e) => po2.failure(new Exception("Erreur : aucun couple de phrases n'a été trouvé dans le second corpus"))
+        }
+      }
+      case Failure(e) => po1.failure(new Exception("Erreur : les phrases n'ont pas pu être extraites du second corpus"))
+    }
 
-//    val phrases:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)
-//      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
-//
-//    poeme match {
-//      case Success(x) => println(x.ecrire())
-//      case Failure(f) => println("Erreur : " + f)
-//    }
+    val poeme = for
+    {
+      pp1 <- po1.future
+      pp2 <- po2.future
+    } yield (pp1,pp2)
+
+    poeme onSuccess
+      {
+        case (x,y) =>
+        {
+          quatrain.success(x(0) + "\n" + y(0) + "\n" + y(1) + "\n" + x(1) + "\n")
+        }
+      }
+    poeme onFailure
+    {
+      case message => {quatrain.failure(message)}
+    }
+
+    Thread.sleep(10000)
   }
 }
 
@@ -91,7 +129,7 @@ abstract class Poeme(phrases:List[Phrase]){
   }
 
   /*Renvoie un poème*/
-  def ecrire():String
+  def ecrire():List[Phrase]
 }
 class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
   /*
@@ -103,12 +141,12 @@ class DeuxVers(phrases:List[Phrase]) extends Poeme(phrases:List[Phrase]){
 
   // Vérification du nombre de syllabes à l'aide une fonction.
   // Si les deux phrases ont plus de 2 syllabes d'écart, on rejette
-  def ecrire():String = {
+  def ecrire():List[Phrase] = {
     couple_riment match {
         // Pattern-matching sur les Option renvoyées par le générateur de couples
       case Some(x) => {val gen = x.generate
-        gen._1.toString() + "\n" + gen._2.toString()}
-      case None => ""
+        List(gen._1, gen._2)}
+      case None => throw new Exception()
     }
   }
 }
@@ -147,8 +185,10 @@ class Mot(mot:String,nbSyllabes:Int,phonetique:String) {
             first.getChar == second.getChar
         case (first: Consonne, second: Consonne) =>
           if(first == second) {
-            val newMot = new Mot(mot.dropRight(1), nbSyllabes - 1, phonetique.dropRight(1))
-            newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
+            if(phonetique.dropRight(1).length > 0 && autre_mot.phonetiquetoString().dropRight(1).length > 0) {
+              val newMot = new Mot(mot.dropRight(1), nbSyllabes - 1, phonetique.dropRight(1))
+              newMot.rime_avec(new Mot(autre_mot.toString().dropRight(1), autre_mot.countSyllabes() - 1, autre_mot.phonetiquetoString().dropRight(1)))
+            }else false
           }
           else false
         case _ => false
@@ -211,7 +251,7 @@ object Phrases{
   def lire_csv(chemin:String,mots:Set[String]):List[String] ={ (for {line <- Source.fromFile(chemin).getLines()  if mots contains line.split(",")(1)} yield line).toList }
 
   def extraire_phrases(chemin_texte:String,chemin_dictionnaire:String):Future[List[Phrase]] = {
-    for {
+   for {
       // On essaie de lire le corpus
         texte <- Future(Source.fromFile(chemin_texte).getLines().filter(_!="").foldLeft(""){_+_})
         phrases_txt = split_phrases(texte)
@@ -225,7 +265,7 @@ object Phrases{
           i.split(",")(8))).toMap
       // Conversion du for-comprehension en une suite de fonction map et filter
         phrases = phrases_txt.filter(p => ((split_mots(p) map (mots_hachage contains _)) forall (x=>x)) && p.trim!="").map(p => Phrase(p.trim,mots_hachage)).toList
-    } yield phrases
+    } yield phrases.filter(x => x.syllabes > 3 && x.syllabes < 10 && x.mots.length > 2).toList
   }
 }
 
