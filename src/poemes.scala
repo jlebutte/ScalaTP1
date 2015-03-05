@@ -13,11 +13,12 @@ import ExecutionContext.Implicits.global
 
 object Main {
   def main(args:Array[String]){
-    val chemin_corpus:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\corpus.txt"
-    val chemin_dictionnaire:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dicorimes.dmp"
-    val chemin_daudet:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\daudet.txt"
-    val chemin_zola:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\zola.txt"
-    val chemin_dixcontes:String = "Z:\\Documents\\Intellij IDEA\\ScalaTP1\\src\\dixcontes.txt"
+    val chemin_corpus:String = "corpus.txt"
+    val chemin_dictionnaire:String = "dicorimes.dmp"
+    val chemin_dictionnaire_secours:String = "dicorimes.dmp"
+    val chemin_daudet:String = "daudet.txt"
+    val chemin_zola:String = "zola.txt"
+    val chemin_dixcontes:String = "dixcontes.txt"
 
 
     val quatrain = Promise[String]()
@@ -25,20 +26,20 @@ object Main {
     val po2 = Promise[List[Phrase]]()
 
     quatrain.future onSuccess
-      {
-        case message => println(message)
-      }
+    {
+      case message => println(message)
+    }
     quatrain.future onFailure
-      {
-        case erreur => println(erreur.getMessage)
-      }
+    {
+      case erreur => println(erreur.getMessage)
+    }
 
     val phrases_daudet:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_daudet,chemin_dictionnaire)
-      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire_secours)}
     val phrases_dixcontes:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_dixcontes,chemin_dictionnaire)
-      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+      .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire_secours)}
     //val phrases_zola:Future[List[Phrase]] = Phrases.extraire_phrases(chemin_zola,chemin_dictionnaire)
-    //  .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire)}
+    //  .recoverWith{case e: Exception => Phrases.extraire_phrases(chemin_corpus,chemin_dictionnaire_secours)}
 
     phrases_daudet.onComplete
     {
@@ -74,17 +75,16 @@ object Main {
     } yield (pp1,pp2)
 
     poeme onSuccess
+    {
+      case (x,y) =>
       {
-        case (x,y) =>
-        {
-          quatrain.success(x(0) + "\n" + y(0) + "\n" + y(1) + "\n" + x(1) + "\n")
-        }
+        quatrain.success(x(0) + "\n" + y(0) + "\n" + y(1) + "\n" + x(1) + "\n")
       }
+    }
     poeme onFailure
     {
       case message => {quatrain.failure(message)}
     }
-
     Thread.sleep(10000)
   }
 }
